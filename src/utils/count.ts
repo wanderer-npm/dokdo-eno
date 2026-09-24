@@ -1,11 +1,9 @@
-import { Collection } from 'discord.js'
 import { typeFind } from './type'
 
 export function count (argument: any): { name: string; count: number; ratio: string }[] | null {
   if (
     argument instanceof Map ||
-    argument instanceof Set ||
-    argument instanceof Collection
+    argument instanceof Set
   ) { argument = Array.from(argument.values()) }
   if (Array.isArray(argument)) {
     const typed = argument.map((el) =>

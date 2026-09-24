@@ -1,20 +1,18 @@
-import { Collection, ButtonBuilder, ButtonStyle, Message } from 'discord.js'
-import type { Client } from '../'
+import type { Client, Context } from '../'
 import { ProcessManager as _ProcessManager, count as _count, inspect as _inspect, table as _table, typeFind as _typeFind } from '../utils'
 
-export async function jsi (message: Message, _dokdo: Client): Promise<void> {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { client } = _dokdo
-  if (!message.data.args) {
-    message.reply('Missing Arguments.')
+export async function jsi (message: Context, _dokdo: Client): Promise<void> {
+  const { bot } = _dokdo
+  if (!message.data?.args) {
+    bot.helpers.sendMessage(message.channelId, { content: 'Missing Arguments.' })
     return
   }
 
   // eslint-disable-next-line no-eval
-  const res = new Promise((resolve) => resolve(eval(message.data.args ?? '')))
+  const res = new Promise((resolve) => resolve(eval(message.data!.args ?? '')))
   let msg!: _ProcessManager
   await res
-    .then((output) => {
+    .then((output: any) => {
       const typeofTheRes = _typeFind(output)
       const overview = _inspect(output, { depth: -1 })
       const constructorName =
@@ -30,42 +28,33 @@ export async function jsi (message: Message, _dokdo: Client): Promise<void> {
           Type: `${typeof output}(${typeofTheRes})`,
           Name: constructorName || null,
           Length: typeof output === 'string' && output.length,
-          Size: output instanceof Collection ? output.size : null,
+          Size: output instanceof Map || output instanceof Set ? output.size : null,
           'Content Types': arrCount
-            ? arrCount.map((el) => `${el.name} (${el.ratio}％)`).join(', ')
+            ? arrCount.map((el: any) => `${el.name} (${el.ratio}％)`).join(', ')
             : null
         })}`,
         _dokdo,
         { lang: 'prolog' }
       )
     })
-    .catch((e) => {
+    .catch((e: any) => {
       msg = new _ProcessManager(message, e.stack, _dokdo, { lang: 'js' })
     })
 
   await msg.init()
   await msg.addAction([
     {
-      button: new ButtonBuilder()
-        .setStyle(ButtonStyle.Danger)
-        .setCustomId('dokdo$prev')
-        .setLabel('Prev'),
+      button: { type: 2, style: 4, customId: 'prev', label: 'Prev' },
       action: ({ manager }) => manager.previousPage(),
       requirePage: true
     },
     {
-      button: new ButtonBuilder()
-        .setStyle(ButtonStyle.Secondary)
-        .setCustomId('dokdo$stop')
-        .setLabel('Stop'),
+      button: { type: 2, style: 2, customId: 'stop', label: 'Stop' },
       action: ({ manager }) => manager.destroy(),
       requirePage: true
     },
     {
-      button: new ButtonBuilder()
-        .setStyle(ButtonStyle.Success)
-        .setCustomId('dokdo$next')
-        .setLabel('Next'),
+      button: { type: 2, style: 3, customId: 'next', label: 'Next' },
       action: ({ manager }) => manager.nextPage(),
       requirePage: true
     }

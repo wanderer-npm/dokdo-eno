@@ -1,57 +1,47 @@
-import { request } from 'undici'
-import { ButtonBuilder, ButtonStyle, Message } from 'discord.js'
 import { ProcessManager, HLJS } from '../utils'
-import type { Client } from '../'
+import type { Client, Context } from '../'
 
-export async function curl (message: Message, parent: Client): Promise<void> {
-  if (!message.data.args) {
-    message.reply('Missing Arguments.')
+export async function curl (message: Context, parent: Client): Promise<void> {
+  const { bot } = parent
+  if (!message.data?.args) {
+    bot.helpers.sendMessage(message.channelId, { content: 'Missing Arguments.' })
     return
   }
 
   let type
   let res
   try {
-    const response = await request(message.data.args.split(' ')[0] as string)
-    const text = await response.body.text()
+    const response = await fetch(message.data.args.split(' ')[0] as string)
+    const text = await response.text()
     try {
       type = 'json'
       res = JSON.stringify(JSON.parse(text), null, 2)
     } catch {
-      type = HLJS.getLang(response.headers['content-type'] as string | undefined) || 'html'
+      type = HLJS.getLang(response.headers.get('content-type')?.split(';')[0]) || 'html'
       res = text
     }
   } catch (e: any) {
     type = 'js'
-    message.react('❗')
+    // eno sadly doesn't have a simple react wrapper on message 
+    bot.helpers.addReaction(message.channelId, message.id, '❗').catch(() => null)
     res = e.toString()
   }
 
-  // console.log(res)
   const msg = new ProcessManager(message, res || '', parent, { lang: type })
   await msg.init()
   await msg.addAction([
     {
-      button: new ButtonBuilder()
-        .setStyle(ButtonStyle.Danger)
-        .setCustomId('dokdo$prev')
-        .setLabel('Prev'),
+      button: { type: 2, style: 4, customId: 'prev', label: 'Prev' },
       action: ({ manager }) => manager.previousPage(),
       requirePage: true
     },
     {
-      button: new ButtonBuilder()
-        .setStyle(ButtonStyle.Secondary)
-        .setCustomId('dokdo$stop')
-        .setLabel('Stop'),
+      button: { type: 2, style: 2, customId: 'stop', label: 'Stop' },
       action: ({ manager }) => manager.destroy(),
       requirePage: true
     },
     {
-      button: new ButtonBuilder()
-        .setStyle(ButtonStyle.Success)
-        .setCustomId('dokdo$next')
-        .setLabel('Next'),
+      button: { type: 2, style: 3, customId: 'next', label: 'Next' },
       action: ({ manager }) => manager.nextPage(),
       requirePage: true
     }

@@ -1,149 +1,154 @@
+# Dokdo-eno
+
 <div align="center">
 <img src="assets/dokdo.png">
-<br/>
-<p>
-    <a href="https://npmjs.com/package/dokdo"><img src="https://img.shields.io/npm/v/dokdo"></a>
-    <a href="https://github.com/wonderlandpark/dokdo/actions"><img src="https://github.com/wonderlandpark/dokdo/workflows/Testing/badge.svg" alt="Build status" /></a>
-</p>
-<p>
-    <a href="https://nodei.co/npm/dokdo/"><img src="https://nodei.co/npm/dokdo.png"></a>
-</p>
 </div>
 
-# Dokdo
+**Dokdo-eno** is a port of [Dokdo](https://github.com/wonderlandpark/dokdo) for [`@discordeno/bot`](https://github.com/discordeno/discordeno).
+It lets you evaluate JavaScript, run shell commands, and inspect your bot in real-time, directly from Discord.
 
-**Dokdo** is a powerful, extensible debugging toolkit for `discord.js`.
-It allows you to evaluate JavaScript code, run shell commands, and inspect your bot in real-time directly from Discord.
+> Inspired by [Jishaku](https://github.com/Ganymede23/Jishaku) for `discord.py`.
 
-> Inspired by [Jishaku](https://github.com/scarletcafe/jishaku) for `discord.py`.
+## Features
 
-## ✨ Features
-
-- **Eval Command** – Run JavaScript code directly in the context of your bot.
+- **Eval command** — run JavaScript in the context of your bot (`js`, `jsi`).
 ![js](assets/js.png)
 ![jsi](assets/jsi.png)
-
-- **Shell Command** – Execute terminal commands through Discord. You could also abort running process.
+- **Shell command** — execute terminal commands with live streamed output (`exec`, `sh`, `bash`, `zsh`, `ps`, `powershell`, `shell`).
 ![sh](assets/sh.gif)
-
-- **Paginated Output** – Long outputs are automatically split and navigable via or buttons.
+- **Paginated output** — long outputs are split into pages with Prev/Stop/Next buttons.
 ![pagination](assets/pagination.png)
-
-- **Security Protection** – Automatically masks bot tokens and other sensitive values from outputs.
+- **Token protection** — the bot token and configured secrets are masked in outputs.
 ![token](assets/token.png)
+- **Direct invocation** — command types work without the alias (e.g. `!js 1 + 1`).
+- **Customizable** — aliases, prefix, owners, secrets, globals, and a stats provider.
 
-- **Easy to Customize** – Tailor prefixes, aliases, owners, variables, and permission error messages etc to fit your needs.
+## Requirements
 
-## 🚀 Installation
+- [`@discordeno/bot`](https://www.npmjs.com/package/@discordeno/bot) (peer dependency)
+- Node.js `>=22.12` or [Bun](https://bun.sh)
+- The `MessageContent` intent if prefix commands should be readable
 
-Dokdo stable version requires Discord.js v14 or later.
+## Installation
+
+`dokdo-eno` is not published on npm. Install it straight from GitHub:
 
 ```bash
-npm install dokdo
+npm install github:wanderer-npm/dokdo-eno
 ```
 
-<details>
-    <summary>Using Discord.js v12?</summary>
-
-You could install `dokdo@0.4.1` by
-    
-```sh
-  npm i dokdo@djsv12
+```bash
+bun add github:wanderer-npm/dokdo-eno
 ```
-</details>
 
-<details>
-    <summary>Using Discord.js v13?</summary>
+Or link a local checkout:
 
-You could install `dokdo@0.5.1` by
-    
-```sh
-  npm i dokdo@djsv13
+```json
+{
+  "dependencies": {
+    "dokdo-eno": "file:../dokdo-eno"
+  }
+}
 ```
-</details>
 
-<details>
-  <summary>Nightly Version?</summary>
+Both CommonJS (`require`) and ESM (`import`) are supported.
 
-[Github Packages](https://github.com/wonderlandpark/dokdo/pkgs/npm/dokdo)
-(registry configuration needed)
+## Usage
 
-```sh
-npm i @wonderlandpark/dokdo@nightly
-```
-</details>
+```ts
+import { createBot, Intents } from '@discordeno/bot'
+import { Dokdo } from 'dokdo-eno'
 
-## 🛠️ Usage
-
-```js
-const Discord = require('discord.js')
-const client = new Discord.Client({ intents: ['GUILDS', 'GUILD_MESSAGES'] })
-
-const Dokdo = require('dokdo')
-
-const DokdoHandler = new Dokdo.Client(client, { aliases: ['dokdo', 'dok'], prefix: '!' }) // Using Bot Application ownerID as default for owner option.
-
-client.on('messageCreate', async message => {
-  if (message.content === 'ping') return message.channel.send('Pong') // handle commands first
-  await DokdoHandler.run(message) // try !dokdo
+const bot = createBot({
+  token: process.env.DISCORD_TOKEN!,
+  intents: Intents.Guilds | Intents.GuildMessages | Intents.MessageContent,
 })
 
-client.login('super secret token')
+const dokdo = new Dokdo(bot, {
+  aliases: ['dokdo', 'dok'],
+  prefix: '!',
+  owners: [123456789012345678n],
+})
+
+bot.events.messageCreate = (message) => {
+  void dokdo.run(message, '!')
+}
+
+bot.events.interactionCreate = (interaction) => {
+  void Dokdo.handleInteraction(bot, interaction)
+}
+
+await bot.start()
 ```
 
-## 📦 Command References
+Button pagination (Prev/Stop/Next) only works if `Dokdo.handleInteraction` receives your button interactions.
 
-### `> dokdo [js|javascript] <argument>`
-### `> dokdo [jsi|javascript_inspect] <argument>`
-Evaluate or execute JavaScript(Node.js) code passed.
+## Commands
 
-Available Variables by default:
+All commands are owner-only. Run them as `<prefix><alias> <type> <code>`, e.g. `!dokdo js 1 + 1`, or invoke a type directly: `!js 1 + 1`.
 
-| VARIABLE  | DESCRIPTION |
+| Type | Aliases | Description |
+|---|---|---|
+| _(none)_ | | Bot status: runtime, memory, gateway shards, latency, intents, guild/user counts |
+| `js` | `javascript` | Evaluate JavaScript, results pretty-printed |
+| `jsi` | `javascript_inspect` | Inspect a value: type, constructor, length/size, content types |
+| `exec` | `sh`, `bash`, `zsh`, `ps`, `powershell`, `shell` | Run a shell command with live output (3 minute timeout, abortable with Stop) |
+| `curl` | | Fetch a URL, pretty-printed as JSON when possible |
+| `cat` | | Read a file from disk |
+
+Code blocks are unwrapped automatically. When no code is given, an attached file (`.txt`, `.js`, `.ts`, `.sh`, `.bash`, `.zsh`, `.ps`) is executed instead, unless `disableAttachmentExecution` is set.
+
+## Eval scope
+
+Inside `js`/`jsi`, the following variables are available:
+
+| Variable | Description |
 |---|---|
-| `client` | The bot `client(Discord.Client)` passed by `Dokdo.Client(client)` |
-| `message` | The `message(Discord.Message)` passed by `DokdoHandler.run(message)` |
-| `_dokdo` | The Dokdo Client |
+| `bot` | The `Bot` instance passed to `new Dokdo(bot, ...)` |
+| `message` | The invoking message (a `reply()` helper is attached, discordeno messages have none natively) |
+| `_dokdo` | The Dokdo instance |
+| `args` | The raw argument string |
 
-### `> dokdo [exec||shell|sh|bash|ps|powershell|zsh] <argument>`
+## Options
 
-Executes commands at your system shell.
-
-Dokdo detects your `SHELL` environment variable(process.env.SHELL) or uses powershell for Windows platform. You could abort running process by a Button.
-
-The execution terminates automatically after 3 minutes.
-
-### `> dokdo [cat] <argument>`
-
-Reads a file from your file system. Pass your file path. (Ex: /home/dokdo/bot.js)
-
-### `> dokdo [curl] <argument>`
-
-Reads text of given URL.
-
-### `> dokdo [shard] <argument>`
-
-Executes commands on every sharded processes. (Discord.js Sharding)
-
-## 🧾 Notes
-
-### Message contents intent not approved?
-
-You can set the Dokdo prefix including mentions. This allows the client to read the message content.
-
-Example:
-
-```js
-new Dokdo.Client(client, {  prefix: '<@285185716240252929>' })
+```ts
+const dokdo = new Dokdo(bot, {
+  aliases: ['dokdo', 'dok'],
+  prefix: '!',
+  owners: [123456789012345678n],
+  secrets: ['extra-string-to-mask'],
+  token: process.env.DISCORD_TOKEN,
+  globalVariable: { config },
+  disableAttachmentExecution: false,
+  noPerm: async (message) => { /* ... */ },
+  isOwner: async (user) => user.id === 123456789012345678n,
+  stats: () => ({ guilds: 816, users: 990512 }),
+})
 ```
-Command Usage: `<@285185716240252929>dokdo`
 
-## 📚 Documentation
+| Option | Type | Description |
+|---|---|---|
+| `aliases` | `string[]` | Command aliases. Defaults to `['dokdo', 'dok']` |
+| `prefix` | `string` | Default prefix (overridable per call via `run(message, usedPrefix)`) |
+| `owners` | `bigint[]` | Owner user IDs, checked before `isOwner` |
+| `secrets` | `string[]` | Extra strings masked as `[secret]` in outputs |
+| `token` | `string` | Token masked as `[accesstoken was hidden]` (falls back to the bot's REST token) |
+| `globalVariable` | `Record<string, any>` | Globals exposed to evaluated code |
+| `disableAttachmentExecution` | `boolean` | Ignore message attachments as code input |
+| `noPerm` | `(message) => Promise<unknown>` | Called when a non-owner invokes dokdo |
+| `isOwner` | `(user) => boolean \| Promise<boolean>` | Custom owner check |
+| `stats` | `{ guilds?, users? } \| () => ...` | Guild/user counts for the status command (discordeno keeps no cache, so the host app provides them; supports async functions) |
 
-Full documentation, examples, and advanced usage: 
+## Notes
 
-👉 https://dokdo.js.org
+### Guild and user counts
 
-## 🤝 Contributing
+Discordeno does not cache guilds or users on the bot object, so the status command shows counts only when the `stats` option is provided.
 
-Pull requests and issues are welcome. Dokdo is open-source and built with developer experience in mind. Please check [the contribution guide](./.github/CONTRIBUTING.md) before you submit Pull Request.
+### Message content intent
+
+Prefix commands need the `MessageContent` intent. A mention prefix works without it.
+
+## License
+
+MIT. Original [Dokdo](https://github.com/wonderlandpark/dokdo) by wonderlandpark.

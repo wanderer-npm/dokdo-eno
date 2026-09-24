@@ -1,7 +1,7 @@
-import type { TimestampStylesString } from 'discord.js'
+
 
 export class DateFormatting {
-  static _format (date: Date | number, style: TimestampStylesString): string {
+  static _format (date: Date | number, style: string): string {
     return (
       `<t:${Math.floor(Number(date) / 1000)}` + (style ? `:${style}` : '') + '>'
     )

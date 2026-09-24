@@ -1,21 +1,21 @@
 import child from 'child_process'
-import { ButtonBuilder, ButtonStyle, Message } from 'discord.js'
-import type { Client } from '../'
+import type { Client, Context } from '../'
 import { ProcessManager, codeBlock } from '../utils'
 
-export async function exec (message: Message, parent: Client): Promise<void> {
+export async function exec (message: Context, parent: Client): Promise<void> {
+  const { bot } = parent
   let closed = false
-  if (!message.data.args) {
-    message.reply('Missing Arguments.')
+  if (!message.data?.args) {
+    bot.helpers.sendMessage(message.channelId, { content: 'Missing Arguments.' })
     return
   }
 
   const shell =
     process.env.SHELL || (process.platform === 'win32' ? 'powershell' : null)
   if (!shell) {
-    message.reply(
-      'Sorry, we are not able to find your default shell.\nPlease set `process.env.SHELL`.'
-    )
+    bot.helpers.sendMessage(message.channelId, {
+      content: 'Sorry, we are not able to find your default shell.\nPlease set `process.env.SHELL`.'
+    })
     return
   }
 
@@ -30,24 +30,18 @@ export async function exec (message: Message, parent: Client): Promise<void> {
   ])
   const timeout = setTimeout(() => {
     kill(res, 'SIGTERM')
-    message.reply('Shell timeout occured.')
+    bot.helpers.sendMessage(message.channelId, { content: 'Shell timeout occured.' })
   }, 180000)
 
   await msg.addAction(
     [
       {
-        button: new ButtonBuilder()
-          .setStyle(ButtonStyle.Danger)
-          .setCustomId('dokdo$prev')
-          .setLabel('Prev'),
+        button: { type: 2, style: 4, customId: 'prev', label: 'Prev' },
         action: ({ manager }) => manager.previousPage(),
         requirePage: true
       },
       {
-        button: new ButtonBuilder()
-          .setStyle(ButtonStyle.Secondary)
-          .setCustomId('dokdo$stop')
-          .setLabel('Stop'),
+        button: { type: 2, style: 2, customId: 'stop', label: 'Stop' },
         action: async ({ res, manager }) => {
           if (!closed) {
             res.stdin.pause()
@@ -59,10 +53,7 @@ export async function exec (message: Message, parent: Client): Promise<void> {
         requirePage: false
       },
       {
-        button: new ButtonBuilder()
-          .setStyle(ButtonStyle.Success)
-          .setCustomId('dokdo$next')
-          .setLabel('Next'),
+        button: { type: 2, style: 3, customId: 'next', label: 'Next' },
         action: ({ manager }) => manager.nextPage(),
         requirePage: true
       }
@@ -79,12 +70,12 @@ export async function exec (message: Message, parent: Client): Promise<void> {
   })
 
   res.on('error', (err) => {
-    return message.reply(
-      `Error occurred while spawning process\n${codeBlock.construct(
+    bot.helpers.sendMessage(message.channelId, {
+      content: `Error occurred while spawning process\n${codeBlock.construct(
         err.toString(),
         'sh'
       )}`
-    )
+    })
   })
   res.on('close', (code) => {
     clearTimeout(timeout)
